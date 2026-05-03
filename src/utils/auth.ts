@@ -35,6 +35,19 @@ export const authMiddleware = new Elysia({ name: 'auth-middleware' })
           session: session.session
         }
       }
+    },
+    adminAuth: {
+      async resolve({ status, request: { headers } }) {
+        const session = await auth.api.getSession({
+          headers
+        })
+        if (!session) return status(401)
+        if (session.user.role !== 'admin') return status(403)
+        return {
+          user: session.user,
+          session: session.session
+        }
+      }
     }
   })
 
