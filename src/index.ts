@@ -5,6 +5,7 @@ import { animeController } from "./anime/anime.controller";
 import { studioController } from "./studio/studio.controller";
 import { episodeController } from "./episode/episode.controller";
 import { episodeVideoController } from "./episode-video/episode-video.controller";
+import cors from "@elysia/cors";
 
 const app = new Elysia({ serve: { hostname: process.env.HOST ?? '0.0.0.0' } })
   .use(openapi({
@@ -20,6 +21,7 @@ const app = new Elysia({ serve: { hostname: process.env.HOST ?? '0.0.0.0' } })
       ]
     }
   })) // OpenAPI Documentation
+  .use(cors())
   .mount('/', auth.handler) // Better Auth Mount
   .use(animeController)
   .use(studioController)

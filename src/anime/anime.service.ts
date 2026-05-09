@@ -2,16 +2,6 @@ import { db } from '@/db'
 import { anime, animeCoverImage, animeTitle, animeTrailer, animeRelation } from '@/db/schema'
 import { AnimeModel, AnimeWithDetails } from '@/anime/anime.model'
 import { eq } from 'drizzle-orm'
-import { getPagination, getOrderExpr, resolveSortColumn, count, type PaginationParams, type PaginatedResult } from '@/utils/pagination'
-
-const ANIME_SORT_COLS = {
-  id: anime.id,
-  createdAt: anime.createdAt,
-  updatedAt: anime.updatedAt,
-  seasonYear: anime.seasonYear,
-  episodes: anime.episodes,
-  duration: anime.duration,
-}
 
 export abstract class AnimeService {
   static async createAnime(data: AnimeModel['create']): Promise<AnimeWithDetails> {
@@ -36,21 +26,10 @@ export abstract class AnimeService {
     })
   }
 
-  static async getAnimeList(params: PaginationParams): Promise<PaginatedResult<any>> {
-    const { page, limit, offset } = getPagination(params)
-    const orderExpr = getOrderExpr(resolveSortColumn(params.sortBy, ANIME_SORT_COLS, anime.id), params.order)
-
-    const [data, [{ total }]] = await Promise.all([
-      db.query.anime.findMany({
-        with: { title: true, coverImage: true },
-        limit,
-        offset,
-        orderBy: orderExpr,
-      }),
-      db.select({ total: count() }).from(anime),
-    ])
-
-    return { data, total, page, limit }
+  static async getAnimeList() {
+    return db.query.anime.findMany({
+      with: { title: true, coverImage: true }
+    })
   }
 
   static async getAnimeById(id: number) {
@@ -80,21 +59,10 @@ export abstract class AnimeService {
     return updated ?? null
   }
 
-  static async getAnimeTrailers(animeId: number, params: PaginationParams): Promise<PaginatedResult<any>> {
-    const { page, limit, offset } = getPagination(params)
-    const orderExpr = getOrderExpr(animeTrailer.id, params.order)
-
-    const [data, [{ total }]] = await Promise.all([
-      db.query.animeTrailer.findMany({
-        where: eq(animeTrailer.animeId, animeId),
-        limit,
-        offset,
-        orderBy: orderExpr,
-      }),
-      db.select({ total: count() }).from(animeTrailer).where(eq(animeTrailer.animeId, animeId)),
-    ])
-
-    return { data, total, page, limit }
+  static async getAnimeTrailers(animeId: number) {
+    return db.query.animeTrailer.findMany({
+      where: eq(animeTrailer.animeId, animeId)
+    })
   }
 
   static async createTrailer(animeId: number, data: AnimeModel['createTrailer']) {
@@ -107,21 +75,10 @@ export abstract class AnimeService {
     return deleted ?? null
   }
 
-  static async getAnimeRelations(animeId: number, params: PaginationParams): Promise<PaginatedResult<any>> {
-    const { page, limit, offset } = getPagination(params)
-    const orderExpr = getOrderExpr(animeRelation.id, params.order)
-
-    const [data, [{ total }]] = await Promise.all([
-      db.query.animeRelation.findMany({
-        where: eq(animeRelation.animeId, animeId),
-        limit,
-        offset,
-        orderBy: orderExpr,
-      }),
-      db.select({ total: count() }).from(animeRelation).where(eq(animeRelation.animeId, animeId)),
-    ])
-
-    return { data, total, page, limit }
+  static async getAnimeRelations(animeId: number) {
+    return db.query.animeRelation.findMany({
+      where: eq(animeRelation.animeId, animeId)
+    })
   }
 
   static async createRelation(animeId: number, data: AnimeModel['createRelation']) {

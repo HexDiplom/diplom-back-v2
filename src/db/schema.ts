@@ -9,7 +9,7 @@ import { relations } from "drizzle-orm/relations";
 export const user = pgTable("user", {
 	id: t.text("id").primaryKey(),
 	name: t.text("name").notNull(),
-	username: t.varchar("username", { length: 255 }).unique(),
+	username: t.varchar("username", { length: 255 }).notNull().unique(),
 	displayUsername: t.text("display_username"),
 	email: t.varchar("email", { length: 255 }).notNull().unique(),
 	emailVerified: t.boolean("email_verified").notNull(),
@@ -157,9 +157,9 @@ export const episodeVideo = pgTable("episode_video", {
   id: t.uuid("id").defaultRandom().primaryKey(),
   episodeId: t.uuid("episode_id").notNull().references(() => episode.id),
 
-  manifestUrl: t.text("manifest_url").notNull(), 
-  
-  container: t.text("container").default("fmp4"), 
+  manifestUrl: t.text("manifest_url").notNull(),
+
+  container: t.text("container").default("fmp4"),
 
   availableResolutions: t.text("available_resolutions").array(),
 

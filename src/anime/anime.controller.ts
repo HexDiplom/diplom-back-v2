@@ -1,18 +1,13 @@
 import { authMiddleware } from "@/utils/auth"
-import { paginationQueryProps } from "@/utils/pagination"
 import Elysia, { t } from "elysia"
 import { AnimeModel } from "./anime.model"
 import { AnimeService } from "./anime.service"
-
-const paginationQuery = t.Object(paginationQueryProps)
-const paginationWithId = t.Object({ ...paginationQueryProps, id: t.Numeric() })
 
 export const animeController = new Elysia({ prefix: "/v1/anime", tags: ["Anime"] })
   .use(authMiddleware)
   .get(
     '/',
-    async ({ query }) => AnimeService.getAnimeList(query),
-    { query: paginationQuery }
+    async () => AnimeService.getAnimeList()
   )
   .get(
     '/:id',
@@ -66,8 +61,8 @@ export const animeController = new Elysia({ prefix: "/v1/anime", tags: ["Anime"]
   )
   .get(
     '/:id/trailers',
-    async ({ params: { id }, query }) => AnimeService.getAnimeTrailers(id, query),
-    { params: t.Object({ id: t.Numeric() }), query: paginationQuery }
+    async ({ params: { id } }) => AnimeService.getAnimeTrailers(id),
+    { params: t.Object({ id: t.Numeric() }) }
   )
   .post(
     '/:id/trailers',
@@ -85,8 +80,8 @@ export const animeController = new Elysia({ prefix: "/v1/anime", tags: ["Anime"]
   )
   .get(
     '/:id/relations',
-    async ({ params: { id }, query }) => AnimeService.getAnimeRelations(id, query),
-    { params: t.Object({ id: t.Numeric() }), query: paginationQuery }
+    async ({ params: { id } }) => AnimeService.getAnimeRelations(id),
+    { params: t.Object({ id: t.Numeric() }) }
   )
   .post(
     '/:id/relations',

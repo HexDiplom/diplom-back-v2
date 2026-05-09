@@ -43,6 +43,8 @@ package-lock.json
 **/*.bun
 
 .claude/
+.agents/
+.codex/
 CLAUDE.md
 llms.txt
 dist/
