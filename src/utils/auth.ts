@@ -36,7 +36,20 @@ export const auth = betterAuth({
         })
       }
     })
-  }
+  },
+  advanced: {
+    useSecureCookies: true,
+
+    cookies: {
+      session_token: {
+        attributes: {
+          sameSite: "none",
+          secure: true,
+          httpOnly: true,
+        },
+      },
+    },
+  },
 });
 
 export const authMiddleware = new Elysia({ name: 'auth-middleware' })
