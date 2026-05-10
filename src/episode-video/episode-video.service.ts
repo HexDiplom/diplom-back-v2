@@ -1,17 +1,49 @@
 import { db } from '@/db'
 import { episodeVideo } from '@/db/schema'
-import { eq } from 'drizzle-orm'
-import type { EpisodeVideoModel } from './episode-video.model'
+import {
+  createPaginatedResult,
+  normalizeListQuery,
+  ordered,
+  orderedNullsLast,
+  type SortOrder,
+} from '@/utils/pagination'
+import { count, eq, type SQL } from 'drizzle-orm'
+import type { EpisodeVideoListQuery, EpisodeVideoModel } from './episode-video.model'
+
+const videoListDefaults = { sortBy: 'id', sortOrder: 'asc' } as const
+
+function getVideoOrderBy(sortBy: NonNullable<EpisodeVideoListQuery['sortBy']>, sortOrder: SortOrder): SQL[] {
+  switch (sortBy) {
+    case 'voiceoverName':
+      return [orderedNullsLast(episodeVideo.voiceoverName, sortOrder), ordered(episodeVideo.id, 'asc')]
+    case 'status':
+      return [orderedNullsLast(episodeVideo.status, sortOrder), ordered(episodeVideo.id, 'asc')]
+    case 'container':
+      return [orderedNullsLast(episodeVideo.container, sortOrder), ordered(episodeVideo.id, 'asc')]
+    case 'episodeId':
+      return [ordered(episodeVideo.episodeId, sortOrder), ordered(episodeVideo.id, 'asc')]
+    case 'id':
+    default:
+      return [ordered(episodeVideo.id, sortOrder)]
+  }
+}
 
 export abstract class EpisodeVideoService {
-  static async getVideoList(episodeId?: string) {
-    if (episodeId !== undefined) {
-      return db.query.episodeVideo.findMany({
-        where: eq(episodeVideo.episodeId, episodeId),
-      })
-    }
+  static async getVideoList(query?: EpisodeVideoListQuery) {
+    const pagination = normalizeListQuery(query, videoListDefaults)
+    const where = query?.episodeId !== undefined ? eq(episodeVideo.episodeId, query.episodeId) : undefined
 
-    return db.select().from(episodeVideo)
+    const [totalRow] = where
+      ? await db.select({ total: count() }).from(episodeVideo).where(where)
+      : await db.select({ total: count() }).from(episodeVideo)
+    const data = await db.query.episodeVideo.findMany({
+      where,
+      orderBy: getVideoOrderBy(pagination.sortBy, pagination.sortOrder),
+      limit: pagination.limit,
+      offset: pagination.offset,
+    })
+
+    return createPaginatedResult(data, totalRow?.total ?? 0, pagination)
   }
 
   static async getVideoById(id: string) {

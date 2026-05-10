@@ -1,11 +1,15 @@
 import { authMiddleware } from '@/utils/auth'
 import Elysia, { t } from 'elysia'
-import { StudioModel } from './studio.model'
+import { StudioModel, type StudioListQuery } from './studio.model'
 import { StudioService } from './studio.service'
 
 export const studioController = new Elysia({ prefix: '/v1/studio', tags: ['Studio'] })
   .use(authMiddleware)
-  .get('/', async () => StudioService.getStudioList())
+  .get(
+    '/',
+    async ({ query }) => StudioService.getStudioList(query as StudioListQuery),
+    { query: StudioModel.listQuery }
+  )
   .get(
     '/:id',
     async ({ params: { id }, status }) => {
