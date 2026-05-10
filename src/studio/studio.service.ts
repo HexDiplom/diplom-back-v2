@@ -1,11 +1,24 @@
 import { db } from '@/db'
 import { studio } from '@/db/schema'
-import { eq } from 'drizzle-orm'
-import type { StudioModel } from './studio.model'
+import { createPaginatedResult, normalizeListQuery, ordered } from '@/utils/pagination'
+import { count, eq } from 'drizzle-orm'
+import type { StudioListQuery, StudioModel } from './studio.model'
+
+const studioListDefaults = { sortBy: 'id', sortOrder: 'asc' } as const
 
 export abstract class StudioService {
-  static async getStudioList() {
-    return db.select().from(studio)
+  static async getStudioList(query?: StudioListQuery) {
+    const pagination = normalizeListQuery(query, studioListDefaults)
+
+    const [totalRow] = await db.select({ total: count() }).from(studio)
+    const data = await db
+      .select()
+      .from(studio)
+      .orderBy(ordered(studio.id, pagination.sortOrder))
+      .limit(pagination.limit)
+      .offset(pagination.offset)
+
+    return createPaginatedResult(data, totalRow?.total ?? 0, pagination)
   }
 
   static async getStudioById(id: number) {

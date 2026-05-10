@@ -1,7 +1,70 @@
 import { db } from '@/db'
 import { anime, animeCoverImage, animeTitle, animeTrailer, animeRelation } from '@/db/schema'
-import { AnimeModel, AnimeWithDetails } from '@/anime/anime.model'
-import { eq } from 'drizzle-orm'
+import {
+  AnimeModel,
+  type AnimeListQuery,
+  type AnimeRelationListQuery,
+  type AnimeTrailerListQuery,
+  type AnimeWithDetails,
+} from '@/anime/anime.model'
+import {
+  createPaginatedResult,
+  normalizeListQuery,
+  ordered,
+  orderedNullsLast,
+  type SortOrder,
+} from '@/utils/pagination'
+import { count, eq, type SQL } from 'drizzle-orm'
+
+const animeListDefaults = { sortBy: 'createdAt', sortOrder: 'desc' } as const
+const trailerListDefaults = { sortBy: 'id', sortOrder: 'asc' } as const
+const relationListDefaults = { sortBy: 'id', sortOrder: 'asc' } as const
+
+function getAnimeOrderBy(sortBy: NonNullable<AnimeListQuery['sortBy']>, sortOrder: SortOrder): SQL[] {
+  switch (sortBy) {
+    case 'titleRussian':
+      return [ordered(animeTitle.russian, sortOrder), ordered(anime.id, 'asc')]
+    case 'startDate':
+      return [
+        orderedNullsLast(anime.startDateYear, sortOrder),
+        orderedNullsLast(anime.startDateMonth, sortOrder),
+        orderedNullsLast(anime.startDateDay, sortOrder),
+        ordered(anime.id, 'asc'),
+      ]
+    case 'endDate':
+      return [
+        orderedNullsLast(anime.endDateYear, sortOrder),
+        orderedNullsLast(anime.endDateMonth, sortOrder),
+        orderedNullsLast(anime.endDateDay, sortOrder),
+        ordered(anime.id, 'asc'),
+      ]
+    case 'updatedAt':
+      return [ordered(anime.updatedAt, sortOrder), ordered(anime.id, 'asc')]
+    case 'seasonYear':
+      return [orderedNullsLast(anime.seasonYear, sortOrder), ordered(anime.id, 'asc')]
+    case 'episodes':
+      return [orderedNullsLast(anime.episodes, sortOrder), ordered(anime.id, 'asc')]
+    case 'duration':
+      return [orderedNullsLast(anime.duration, sortOrder), ordered(anime.id, 'asc')]
+    case 'id':
+      return [ordered(anime.id, sortOrder)]
+    case 'createdAt':
+    default:
+      return [ordered(anime.createdAt, sortOrder), ordered(anime.id, 'asc')]
+  }
+}
+
+function getRelationOrderBy(sortBy: NonNullable<AnimeRelationListQuery['sortBy']>, sortOrder: SortOrder): SQL[] {
+  switch (sortBy) {
+    case 'relationType':
+      return [ordered(animeRelation.relationType, sortOrder), ordered(animeRelation.id, 'asc')]
+    case 'relatedAnimeId':
+      return [ordered(animeRelation.relatedAnimeId, sortOrder), ordered(animeRelation.id, 'asc')]
+    case 'id':
+    default:
+      return [ordered(animeRelation.id, sortOrder)]
+  }
+}
 
 export abstract class AnimeService {
   static async createAnime(data: AnimeModel['create']): Promise<AnimeWithDetails> {
@@ -26,10 +89,31 @@ export abstract class AnimeService {
     })
   }
 
-  static async getAnimeList() {
-    return db.query.anime.findMany({
-      with: { title: true, coverImage: true }
-    })
+  static async getAnimeList(query?: AnimeListQuery) {
+    const pagination = normalizeListQuery(query, animeListDefaults)
+
+    const [totalRow] = await db
+      .select({ total: count() })
+      .from(anime)
+      .innerJoin(animeTitle, eq(animeTitle.animeId, anime.id))
+    const rows = await db
+      .select({
+        anime,
+        title: animeTitle,
+        coverImage: animeCoverImage,
+      })
+      .from(anime)
+      .innerJoin(animeTitle, eq(animeTitle.animeId, anime.id))
+      .leftJoin(animeCoverImage, eq(animeCoverImage.animeId, anime.id))
+      .orderBy(...getAnimeOrderBy(pagination.sortBy, pagination.sortOrder))
+      .limit(pagination.limit)
+      .offset(pagination.offset)
+
+    return createPaginatedResult(
+      rows.map(({ anime, title, coverImage }) => ({ ...anime, title, coverImage })),
+      totalRow?.total ?? 0,
+      pagination,
+    )
   }
 
   static async getAnimeById(id: number) {
@@ -59,10 +143,19 @@ export abstract class AnimeService {
     return updated ?? null
   }
 
-  static async getAnimeTrailers(animeId: number) {
-    return db.query.animeTrailer.findMany({
-      where: eq(animeTrailer.animeId, animeId)
+  static async getAnimeTrailers(animeId: number, query?: AnimeTrailerListQuery) {
+    const pagination = normalizeListQuery(query, trailerListDefaults)
+    const where = eq(animeTrailer.animeId, animeId)
+
+    const [totalRow] = await db.select({ total: count() }).from(animeTrailer).where(where)
+    const data = await db.query.animeTrailer.findMany({
+      where,
+      orderBy: [ordered(animeTrailer.id, pagination.sortOrder)],
+      limit: pagination.limit,
+      offset: pagination.offset,
     })
+
+    return createPaginatedResult(data, totalRow?.total ?? 0, pagination)
   }
 
   static async createTrailer(animeId: number, data: AnimeModel['createTrailer']) {
@@ -75,10 +168,19 @@ export abstract class AnimeService {
     return deleted ?? null
   }
 
-  static async getAnimeRelations(animeId: number) {
-    return db.query.animeRelation.findMany({
-      where: eq(animeRelation.animeId, animeId)
+  static async getAnimeRelations(animeId: number, query?: AnimeRelationListQuery) {
+    const pagination = normalizeListQuery(query, relationListDefaults)
+    const where = eq(animeRelation.animeId, animeId)
+
+    const [totalRow] = await db.select({ total: count() }).from(animeRelation).where(where)
+    const data = await db.query.animeRelation.findMany({
+      where,
+      orderBy: getRelationOrderBy(pagination.sortBy, pagination.sortOrder),
+      limit: pagination.limit,
+      offset: pagination.offset,
     })
+
+    return createPaginatedResult(data, totalRow?.total ?? 0, pagination)
   }
 
   static async createRelation(animeId: number, data: AnimeModel['createRelation']) {

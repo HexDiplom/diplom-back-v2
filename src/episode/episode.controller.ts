@@ -1,14 +1,14 @@
 import { authMiddleware } from '@/utils/auth'
 import Elysia, { t } from 'elysia'
-import { EpisodeModel } from './episode.model'
+import { EpisodeModel, type EpisodeListQuery } from './episode.model'
 import { EpisodeService } from './episode.service'
 
 export const episodeController = new Elysia({ prefix: '/v1/episode', tags: ['Episode'] })
   .use(authMiddleware)
   .get(
     '/',
-    async ({ query: { animeId } }) => EpisodeService.getEpisodeList(animeId),
-    { query: t.Object({ animeId: t.Optional(t.Numeric()) }) }
+    async ({ query }) => EpisodeService.getEpisodeList(query as EpisodeListQuery),
+    { query: EpisodeModel.listQuery }
   )
   .get('/:id', async ({ params: { id }, status }) => {
     const item = await EpisodeService.getEpisodeById(id)
