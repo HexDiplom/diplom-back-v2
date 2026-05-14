@@ -46,6 +46,7 @@ export const episodeController = new Elysia({ prefix: '/v1/episode', tags: ['Epi
             await imageUploadService.cleanupUploadedObjects(upload.objects)
             return status(404)
           }
+          await imageUploadService.cleanupPublicUrls([item.thumbnailUrl])
           return updated
         } catch (error) {
           await imageUploadService.cleanupUploadedObjects(upload.objects)

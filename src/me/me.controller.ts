@@ -16,7 +16,7 @@ export const meController = new Elysia({ prefix: '/v1/me', tags: ['Me'] })
 
         try {
           const [currentUser] = await db
-            .select({ username: userTable.username })
+            .select({ username: userTable.username, image: userTable.image })
             .from(userTable)
             .where(eq(userTable.id, user.id))
 
@@ -34,6 +34,7 @@ export const meController = new Elysia({ prefix: '/v1/me', tags: ['Me'] })
             set.headers[key] = value
           })
 
+          await imageUploadService.cleanupPublicUrls([currentUser.image])
           return { image: upload.image.url }
         } catch (error) {
           await imageUploadService.cleanupUploadedObjects(upload.objects)

@@ -50,6 +50,7 @@ export const studioController = new Elysia({ prefix: '/v1/studio', tags: ['Studi
             await imageUploadService.cleanupUploadedObjects(upload.objects)
             return status(404)
           }
+          await imageUploadService.cleanupPublicUrls([item.logo])
           return updated
         } catch (error) {
           await imageUploadService.cleanupUploadedObjects(upload.objects)

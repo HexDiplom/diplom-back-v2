@@ -38,7 +38,7 @@ export type UploadedAnimeCoverResult = {
   objects: UploadedObject[]
 }
 
-type Storage = Pick<GarageStorageService, 'putObject' | 'getPublicUrl' | 'deleteObject'>
+type Storage = Pick<GarageStorageService, 'putObject' | 'getPublicUrl' | 'getObjectKeyFromPublicUrl' | 'deleteObject'>
 
 export class ImageUploadError extends Error {
   constructor(message: string) {
@@ -135,6 +135,17 @@ export class ImageUploadService {
 
   async cleanupUploadedObjects(objects: UploadedObject[]) {
     await Promise.allSettled(objects.map(({ key }) => this.storage.deleteObject(key)))
+  }
+
+  async cleanupPublicUrls(urls: Array<string | null | undefined>) {
+    const keys = new Set<string>()
+
+    for (const url of urls) {
+      const key = this.storage.getObjectKeyFromPublicUrl(url)
+      if (key) keys.add(key)
+    }
+
+    await Promise.allSettled([...keys].map((key) => this.storage.deleteObject(key)))
   }
 
   private async uploadWebpImage(file: File, params: WebpImageParams): Promise<UploadedImageResult> {

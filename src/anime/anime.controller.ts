@@ -82,6 +82,7 @@ export const animeController = new Elysia({ prefix: "/v1/anime", tags: ["Anime"]
             await imageUploadService.cleanupUploadedObjects(upload.objects)
             return status(404)
           }
+          await imageUploadService.cleanupPublicUrls([item.bannerImage])
           return updated
         } catch (error) {
           await imageUploadService.cleanupUploadedObjects(upload.objects)
@@ -104,12 +105,19 @@ export const animeController = new Elysia({ prefix: "/v1/anime", tags: ["Anime"]
         const upload = await imageUploadService.uploadAnimeCover(body.file, id)
 
         try {
-          return await AnimeService.upsertAnimeCoverImages(id, {
+          const updated = await AnimeService.upsertAnimeCoverImages(id, {
             original: upload.original.url,
             medium: upload.medium.url,
             large: upload.large.url,
             extraLarge: upload.extraLarge.url,
           })
+          await imageUploadService.cleanupPublicUrls([
+            item.coverImage?.original,
+            item.coverImage?.medium,
+            item.coverImage?.large,
+            item.coverImage?.extraLarge,
+          ])
+          return updated
         } catch (error) {
           await imageUploadService.cleanupUploadedObjects(upload.objects)
           throw error
@@ -155,6 +163,7 @@ export const animeController = new Elysia({ prefix: "/v1/anime", tags: ["Anime"]
             await imageUploadService.cleanupUploadedObjects(upload.objects)
             return status(404)
           }
+          await imageUploadService.cleanupPublicUrls([trailer.thumbnailUrl])
           return updated
         } catch (error) {
           await imageUploadService.cleanupUploadedObjects(upload.objects)

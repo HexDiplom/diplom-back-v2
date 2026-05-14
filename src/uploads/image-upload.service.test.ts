@@ -15,6 +15,11 @@ class MockStorage {
     return `https://cdn.example.com/${key}`
   }
 
+  getObjectKeyFromPublicUrl(url: string | null | undefined) {
+    const prefix = 'https://cdn.example.com/'
+    return url?.startsWith(prefix) ? url.slice(prefix.length) : null
+  }
+
   async deleteObject(key: string) {
     this.deletedKeys.push(key)
     return {} as any
@@ -87,5 +92,39 @@ describe('ImageUploadService', () => {
     expect(result.medium.url).toBe('https://cdn.example.com/anime/42/cover/medium/cover-id.webp')
     expect(result.objects.map(({ key }) => key)).toEqual(keys)
     expect(variantMetadata.map(({ width }) => width)).toEqual([300, 600, 900])
+  })
+
+  test('deletes only owned old public URLs', async () => {
+    const storage = new MockStorage()
+    const service = new ImageUploadService(storage, () => 'image-id')
+
+    await service.cleanupPublicUrls([
+      'https://cdn.example.com/users/user-1/avatar/old.webp',
+      'https://static.example.com/users/user-1/avatar/external.webp',
+      'https://cdn.example.com/users/user-1/avatar/old.webp',
+      null,
+      undefined,
+    ])
+
+    expect(storage.deletedKeys).toEqual(['users/user-1/avatar/old.webp'])
+  })
+
+  test('queues all old anime cover URLs for deletion', async () => {
+    const storage = new MockStorage()
+    const service = new ImageUploadService(storage, () => 'cover-id')
+
+    await service.cleanupPublicUrls([
+      'https://cdn.example.com/anime/42/cover/original/old.png',
+      'https://cdn.example.com/anime/42/cover/medium/old.webp',
+      'https://cdn.example.com/anime/42/cover/large/old.webp',
+      'https://cdn.example.com/anime/42/cover/extraLarge/old.webp',
+    ])
+
+    expect(storage.deletedKeys).toEqual([
+      'anime/42/cover/original/old.png',
+      'anime/42/cover/medium/old.webp',
+      'anime/42/cover/large/old.webp',
+      'anime/42/cover/extraLarge/old.webp',
+    ])
   })
 })

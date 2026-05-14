@@ -220,6 +220,32 @@ export class GarageStorageService {
     return `${publicUrl.replace(/\/+$/, '')}/${encodeObjectKey(normalizeObjectKey(key))}`
   }
 
+  getObjectKeyFromPublicUrl(url: string | null | undefined): string | null {
+    const value = url?.trim()
+    if (!value) return null
+
+    const { publicUrl } = this.getConfig()
+    if (!publicUrl) return null
+
+    const baseUrl = publicUrl.replace(/\/+$/, '')
+
+    try {
+      const parsedValue = new URL(value)
+      const parsedBase = new URL(`${baseUrl}/`)
+      const basePath = parsedBase.pathname.replace(/\/+$/, '') + '/'
+
+      if (parsedValue.origin !== parsedBase.origin || !parsedValue.pathname.startsWith(basePath)) {
+        return null
+      }
+
+      return decodeObjectKey(parsedValue.pathname.slice(basePath.length))
+    } catch {
+      const prefix = `${baseUrl}/`
+      if (!value.startsWith(prefix)) return null
+      return decodeObjectKey(value.slice(prefix.length))
+    }
+  }
+
   createPresignedGetUrl(key: string, expiresInSeconds?: number): Promise<string> {
     const config = this.getConfig()
 
@@ -281,6 +307,14 @@ export class GarageStorageService {
 
 function encodeObjectKey(key: string): string {
   return key.split('/').map(encodeURIComponent).join('/')
+}
+
+function decodeObjectKey(key: string): string | null {
+  try {
+    return normalizeObjectKey(key.split('/').map(decodeURIComponent).join('/'))
+  } catch {
+    return null
+  }
 }
 
 export const garageStorageService = new GarageStorageService()

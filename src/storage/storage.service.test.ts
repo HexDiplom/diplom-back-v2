@@ -94,6 +94,24 @@ describe('GarageStorageService', () => {
     expect(service.getPublicUrl('/covers/main image.jpg')).toBe('https://cdn.example.com/media/covers/main%20image.jpg')
   })
 
+  test('resolves owned public URLs back to object keys', () => {
+    const service = new GarageStorageService(config, new MockStorageClient())
+
+    expect(service.getObjectKeyFromPublicUrl(' https://cdn.example.com/media/covers/main%20image.jpg ')).toBe('covers/main image.jpg')
+    expect(service.getObjectKeyFromPublicUrl('https://cdn.example.com/media/covers/main%20image.jpg?v=1')).toBe('covers/main image.jpg')
+  })
+
+  test('skips external, malformed and unconfigured public URLs', () => {
+    const service = new GarageStorageService(config, new MockStorageClient())
+    const serviceWithoutPublicUrl = new GarageStorageService({ ...config, publicUrl: undefined }, new MockStorageClient())
+
+    expect(service.getObjectKeyFromPublicUrl('https://static.example.com/media/covers/main.jpg')).toBeNull()
+    expect(service.getObjectKeyFromPublicUrl('https://cdn.example.com/other/covers/main.jpg')).toBeNull()
+    expect(service.getObjectKeyFromPublicUrl('https://cdn.example.com/media/%E0%A4%A')).toBeNull()
+    expect(service.getObjectKeyFromPublicUrl(null)).toBeNull()
+    expect(serviceWithoutPublicUrl.getObjectKeyFromPublicUrl('https://cdn.example.com/media/covers/main.jpg')).toBeNull()
+  })
+
   test('sends put object command with normalized key', async () => {
     const client = new MockStorageClient()
     const service = new GarageStorageService(config, client)
