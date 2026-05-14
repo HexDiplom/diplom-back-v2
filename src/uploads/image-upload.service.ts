@@ -4,6 +4,7 @@ import { garageStorageService, type GarageStorageService } from '@/storage/stora
 
 export const ACCEPTED_IMAGE_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 export const MAX_IMAGE_FILE_SIZE = 10 * 1024 * 1024
+export const MAX_IMAGE_PIXELS = 25_000_000
 
 const WEBP_CONTENT_TYPE = 'image/webp'
 const WEBP_QUALITY = 85
@@ -196,13 +197,17 @@ export class ImageUploadService {
 
 async function resizeToWebp(buffer: Buffer, params: ResizeToWebpParams): Promise<Buffer> {
   try {
-    const image = sharp(buffer).rotate()
+    const image = sharp(buffer, { limitInputPixels: MAX_IMAGE_PIXELS }).rotate()
     const resized = params.square
       ? image.resize(params.width, params.width, { fit: 'cover', position: 'center' })
       : image.resize({ width: params.width, withoutEnlargement: true })
 
     return await resized.webp({ quality: WEBP_QUALITY }).toBuffer()
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('exceeds pixel limit')) {
+      throw new ImageUploadError('Image dimensions are too large')
+    }
+
     throw new ImageUploadError('Uploaded file must be a valid image')
   }
 }

@@ -5,6 +5,7 @@ import { ImageUploadModel } from '@/uploads/image-upload.model'
 import { ImageUploadError, imageUploadService } from '@/uploads/image-upload.service'
 import { eq } from 'drizzle-orm'
 import Elysia from 'elysia'
+import { appendHeadersPreservingSetCookie } from '@/utils/headers'
 
 export const meController = new Elysia({ prefix: '/v1/me', tags: ['Me'] })
   .use(authMiddleware)
@@ -30,9 +31,7 @@ export const meController = new Elysia({ prefix: '/v1/me', tags: ['Me'] })
             headers,
             returnHeaders: true,
           })
-          authResponse.headers.forEach((value, key) => {
-            set.headers[key] = value
-          })
+          appendHeadersPreservingSetCookie(set.headers, authResponse.headers)
 
           await imageUploadService.cleanupPublicUrls([currentUser.image])
           return { image: upload.image.url }

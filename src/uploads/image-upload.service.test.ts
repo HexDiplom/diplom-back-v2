@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
+import { deflateSync } from 'node:zlib'
 import sharp from 'sharp'
-import { ImageUploadService } from './image-upload.service'
+import { ImageUploadService, MAX_IMAGE_PIXELS } from './image-upload.service'
 
 class MockStorage {
   puts: Array<{ key: string; body: Buffer; contentType?: string; cacheControl?: string }> = []
@@ -39,6 +40,54 @@ async function createPngFile(width = 32, height = 32) {
   return new File([new Uint8Array(buffer)], 'image.png', { type: 'image/png' })
 }
 
+function createOversizedPngFile() {
+  const width = Math.floor(Math.sqrt(MAX_IMAGE_PIXELS)) + 1
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(width, 0)
+  ihdr.writeUInt32BE(width, 4)
+  ihdr[8] = 8
+  ihdr[9] = 2
+
+  const buffer = Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    createPngChunk('IHDR', ihdr),
+    createPngChunk('IDAT', deflateSync(Buffer.alloc(0))),
+    createPngChunk('IEND', Buffer.alloc(0)),
+  ])
+
+  return new File([new Uint8Array(buffer)], 'huge.png', { type: 'image/png' })
+}
+
+function createPngChunk(type: string, data: Buffer) {
+  const typeBuffer = Buffer.from(type)
+  const chunk = Buffer.alloc(12 + data.length)
+  chunk.writeUInt32BE(data.length, 0)
+  typeBuffer.copy(chunk, 4)
+  data.copy(chunk, 8)
+  chunk.writeUInt32BE(crc32(Buffer.concat([typeBuffer, data])), 8 + data.length)
+  return chunk
+}
+
+function crc32(buffer: Buffer) {
+  let crc = 0xffffffff
+
+  for (const value of buffer) {
+    crc = CRC_TABLE[(crc ^ value) & 0xff] ^ (crc >>> 8)
+  }
+
+  return (crc ^ 0xffffffff) >>> 0
+}
+
+const CRC_TABLE = Array.from({ length: 256 }, (_, index) => {
+  let value = index
+
+  for (let bit = 0; bit < 8; bit++) {
+    value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1
+  }
+
+  return value >>> 0
+})
+
 describe('ImageUploadService', () => {
   test('rejects unsupported image types before upload', async () => {
     const storage = new MockStorage()
@@ -46,6 +95,14 @@ describe('ImageUploadService', () => {
     const file = new File(['text'], 'image.txt', { type: 'text/plain' })
 
     await expect(service.uploadStudioLogo(file, 1)).rejects.toThrow('Unsupported image type')
+    expect(storage.puts).toHaveLength(0)
+  })
+
+  test('rejects images over the decoded pixel limit before upload', async () => {
+    const storage = new MockStorage()
+    const service = new ImageUploadService(storage, () => 'image-id')
+
+    await expect(service.uploadStudioLogo(createOversizedPngFile(), 1)).rejects.toThrow('Image dimensions are too large')
     expect(storage.puts).toHaveLength(0)
   })
 
