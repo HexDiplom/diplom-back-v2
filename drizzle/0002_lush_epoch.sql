@@ -1,0 +1,1 @@
+ALTER TABLE "anime_cover_image" ADD COLUMN "original" text;

@@ -2,6 +2,8 @@ import { authMiddleware } from '@/utils/auth'
 import Elysia, { t } from 'elysia'
 import { StudioModel, type StudioListQuery } from './studio.model'
 import { StudioService } from './studio.service'
+import { ImageUploadModel } from '@/uploads/image-upload.model'
+import { ImageUploadError, imageUploadService } from '@/uploads/image-upload.service'
 
 export const studioController = new Elysia({ prefix: '/v1/studio', tags: ['Studio'] })
   .use(authMiddleware)
@@ -32,6 +34,33 @@ export const studioController = new Elysia({ prefix: '/v1/studio', tags: ['Studi
       return updated
     },
     { params: t.Object({ id: t.Numeric() }), body: StudioModel.update, adminAuth: true }
+  )
+  .post(
+    '/:id/images/logo',
+    async ({ params: { id }, body, status }) => {
+      const item = await StudioService.getStudioById(id)
+      if (!item) return status(404)
+
+      try {
+        const upload = await imageUploadService.uploadStudioLogo(body.file, id)
+
+        try {
+          const updated = await StudioService.updateStudioLogo(id, upload.image.url)
+          if (!updated) {
+            await imageUploadService.cleanupUploadedObjects(upload.objects)
+            return status(404)
+          }
+          return updated
+        } catch (error) {
+          await imageUploadService.cleanupUploadedObjects(upload.objects)
+          throw error
+        }
+      } catch (error) {
+        if (error instanceof ImageUploadError) return status(400, { message: error.message })
+        throw error
+      }
+    },
+    { params: t.Object({ id: t.Numeric() }), body: ImageUploadModel.body, adminAuth: true }
   )
   .delete(
     '/:id',

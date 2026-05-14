@@ -5,6 +5,7 @@ import { animeController } from "./anime/anime.controller";
 import { studioController } from "./studio/studio.controller";
 import { episodeController } from "./episode/episode.controller";
 import { episodeVideoController } from "./episode-video/episode-video.controller";
+import { meController } from "./me/me.controller";
 import cors from "@elysia/cors";
 
 const app = new Elysia({ serve: { hostname: process.env.HOST ?? '0.0.0.0' } })
@@ -18,6 +19,7 @@ const app = new Elysia({ serve: { hostname: process.env.HOST ?? '0.0.0.0' } })
         { name: "Studio" },
         { name: "Episode" },
         { name: "EpisodeVideo" },
+        { name: "Me" },
       ]
     }
   })) // OpenAPI Documentation
@@ -27,6 +29,7 @@ const app = new Elysia({ serve: { hostname: process.env.HOST ?? '0.0.0.0' } })
   .use(studioController)
   .use(episodeController)
   .use(episodeVideoController)
+  .use(meController)
   .listen(process.env.PORT ?? 3000);
 
 console.log(

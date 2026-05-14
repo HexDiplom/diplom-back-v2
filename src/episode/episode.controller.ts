@@ -2,6 +2,8 @@ import { authMiddleware } from '@/utils/auth'
 import Elysia, { t } from 'elysia'
 import { EpisodeModel, type EpisodeListQuery } from './episode.model'
 import { EpisodeService } from './episode.service'
+import { ImageUploadModel } from '@/uploads/image-upload.model'
+import { ImageUploadError, imageUploadService } from '@/uploads/image-upload.service'
 
 export const episodeController = new Elysia({ prefix: '/v1/episode', tags: ['Episode'] })
   .use(authMiddleware)
@@ -28,6 +30,33 @@ export const episodeController = new Elysia({ prefix: '/v1/episode', tags: ['Epi
       return updated
     },
     { body: EpisodeModel.update, adminAuth: true }
+  )
+  .post(
+    '/:id/images/thumbnail',
+    async ({ params: { id }, body, status }) => {
+      const item = await EpisodeService.getEpisodeById(id)
+      if (!item) return status(404)
+
+      try {
+        const upload = await imageUploadService.uploadEpisodeThumbnail(body.file, id)
+
+        try {
+          const updated = await EpisodeService.updateEpisodeThumbnail(id, upload.image.url)
+          if (!updated) {
+            await imageUploadService.cleanupUploadedObjects(upload.objects)
+            return status(404)
+          }
+          return updated
+        } catch (error) {
+          await imageUploadService.cleanupUploadedObjects(upload.objects)
+          throw error
+        }
+      } catch (error) {
+        if (error instanceof ImageUploadError) return status(400, { message: error.message })
+        throw error
+      }
+    },
+    { params: t.Object({ id: t.String() }), body: ImageUploadModel.body, adminAuth: true }
   )
   .delete(
     '/:id',

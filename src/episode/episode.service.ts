@@ -61,6 +61,11 @@ export abstract class EpisodeService {
     return updated ?? null
   }
 
+  static async updateEpisodeThumbnail(id: string, thumbnailUrl: string) {
+    const [updated] = await db.update(episode).set({ thumbnailUrl }).where(eq(episode.id, id)).returning()
+    return updated ?? null
+  }
+
   static async deleteEpisode(id: string) {
     const [deleted] = await db.delete(episode).where(eq(episode.id, id)).returning()
     return deleted ?? null

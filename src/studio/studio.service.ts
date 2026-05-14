@@ -36,6 +36,11 @@ export abstract class StudioService {
     return updated ?? null
   }
 
+  static async updateStudioLogo(id: number, logo: string) {
+    const [updated] = await db.update(studio).set({ logo }).where(eq(studio.id, id)).returning()
+    return updated ?? null
+  }
+
   static async deleteStudio(id: number) {
     const [deleted] = await db.delete(studio).where(eq(studio.id, id)).returning()
     return deleted ?? null
