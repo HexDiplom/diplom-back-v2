@@ -15,6 +15,13 @@
       "when": 1778326972183,
       "tag": "0001_curious_frog_thor",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778754144255,
+      "tag": "0002_lush_epoch",
+      "breakpoints": true
     }
   ]
 }

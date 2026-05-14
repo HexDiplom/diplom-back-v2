@@ -7,6 +7,8 @@ import {
   type AnimeTrailerListQuery,
 } from "./anime.model"
 import { AnimeService } from "./anime.service"
+import { ImageUploadModel } from "@/uploads/image-upload.model"
+import { ImageUploadError, imageUploadService } from "@/uploads/image-upload.service"
 
 export const animeController = new Elysia({ prefix: "/v1/anime", tags: ["Anime"] })
   .use(authMiddleware)
@@ -65,6 +67,68 @@ export const animeController = new Elysia({ prefix: "/v1/anime", tags: ["Anime"]
     },
     { params: t.Object({ id: t.Numeric() }), body: AnimeModel.updateCover, adminAuth: true }
   )
+  .post(
+    '/:id/images/banner',
+    async ({ params: { id }, body, status }) => {
+      const item = await AnimeService.getAnimeById(id)
+      if (!item) return status(404)
+
+      try {
+        const upload = await imageUploadService.uploadAnimeBanner(body.file, id)
+
+        try {
+          const updated = await AnimeService.updateAnimeBanner(id, upload.image.url)
+          if (!updated) {
+            await imageUploadService.cleanupUploadedObjects(upload.objects)
+            return status(404)
+          }
+          await imageUploadService.cleanupPublicUrls([item.bannerImage])
+          return updated
+        } catch (error) {
+          await imageUploadService.cleanupUploadedObjects(upload.objects)
+          throw error
+        }
+      } catch (error) {
+        if (error instanceof ImageUploadError) return status(400, { message: error.message })
+        throw error
+      }
+    },
+    { params: t.Object({ id: t.Numeric() }), body: ImageUploadModel.body, adminAuth: true }
+  )
+  .post(
+    '/:id/images/cover',
+    async ({ params: { id }, body, status }) => {
+      const item = await AnimeService.getAnimeById(id)
+      if (!item) return status(404)
+
+      try {
+        const upload = await imageUploadService.uploadAnimeCover(body.file, id)
+
+        try {
+          const updated = await AnimeService.upsertAnimeCoverImages(id, {
+            original: upload.original.url,
+            medium: upload.medium.url,
+            large: upload.large.url,
+            extraLarge: upload.extraLarge.url,
+          })
+          await imageUploadService.cleanupPublicUrls([
+            item.coverImage?.original,
+            item.coverImage?.medium,
+            item.coverImage?.large,
+            item.coverImage?.extraLarge,
+          ])
+          return updated
+        } catch (error) {
+          await imageUploadService.cleanupUploadedObjects(upload.objects)
+          throw error
+        }
+      } catch (error) {
+        if (error instanceof ImageUploadError) return status(400, { message: error.message })
+        throw error
+      }
+    },
+    { params: t.Object({ id: t.Numeric() }), body: ImageUploadModel.body, adminAuth: true }
+  )
   .get(
     '/:id/trailers',
     async ({ params: { id }, query }) => AnimeService.getAnimeTrailers(id, query as AnimeTrailerListQuery),
@@ -83,6 +147,34 @@ export const animeController = new Elysia({ prefix: "/v1/anime", tags: ["Anime"]
       return deleted
     },
     { params: t.Object({ trailerId: t.Numeric() }), adminAuth: true }
+  )
+  .post(
+    '/trailers/:trailerId/images/thumbnail',
+    async ({ params: { trailerId }, body, status }) => {
+      const trailer = await AnimeService.getTrailerById(trailerId)
+      if (!trailer) return status(404)
+
+      try {
+        const upload = await imageUploadService.uploadTrailerThumbnail(body.file, trailerId)
+
+        try {
+          const updated = await AnimeService.updateTrailerThumbnail(trailerId, upload.image.url)
+          if (!updated) {
+            await imageUploadService.cleanupUploadedObjects(upload.objects)
+            return status(404)
+          }
+          await imageUploadService.cleanupPublicUrls([trailer.thumbnailUrl])
+          return updated
+        } catch (error) {
+          await imageUploadService.cleanupUploadedObjects(upload.objects)
+          throw error
+        }
+      } catch (error) {
+        if (error instanceof ImageUploadError) return status(400, { message: error.message })
+        throw error
+      }
+    },
+    { params: t.Object({ trailerId: t.Numeric() }), body: ImageUploadModel.body, adminAuth: true }
   )
   .get(
     '/:id/relations',

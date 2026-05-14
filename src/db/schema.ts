@@ -124,6 +124,7 @@ export const animeTrailer = pgTable("anime_trailer", {
 
 export const animeCoverImage = pgTable("anime_cover_image", {
 	animeId: t.integer("anime_id").notNull().references(() => anime.id, { onDelete: "cascade" }).primaryKey(),
+	original: t.text("original"),
 	extraLarge: t.text("extra_large"),
 	large: t.text("large"),
 	medium: t.text("medium").notNull(),

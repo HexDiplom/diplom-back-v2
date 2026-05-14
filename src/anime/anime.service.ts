@@ -128,6 +128,11 @@ export abstract class AnimeService {
     return updated ?? null
   }
 
+  static async updateAnimeBanner(id: number, bannerImage: string) {
+    const [updated] = await db.update(anime).set({ bannerImage }).where(eq(anime.id, id)).returning()
+    return updated ?? null
+  }
+
   static async deleteAnime(id: number) {
     const [deleted] = await db.delete(anime).where(eq(anime.id, id)).returning()
     return deleted ?? null
@@ -141,6 +146,26 @@ export abstract class AnimeService {
   static async updateAnimeCover(animeId: number, data: AnimeModel['updateCover']) {
     const [updated] = await db.update(animeCoverImage).set(data).where(eq(animeCoverImage.animeId, animeId)).returning()
     return updated ?? null
+  }
+
+  static async upsertAnimeCoverImages(
+    animeId: number,
+    data: {
+      original: string
+      medium: string
+      large: string
+      extraLarge: string
+    },
+  ) {
+    const [updated] = await db
+      .insert(animeCoverImage)
+      .values({ animeId, ...data })
+      .onConflictDoUpdate({
+        target: animeCoverImage.animeId,
+        set: data,
+      })
+      .returning()
+    return updated
   }
 
   static async getAnimeTrailers(animeId: number, query?: AnimeTrailerListQuery) {
@@ -161,6 +186,16 @@ export abstract class AnimeService {
   static async createTrailer(animeId: number, data: AnimeModel['createTrailer']) {
     const [created] = await db.insert(animeTrailer).values({ animeId, ...data }).returning()
     return created
+  }
+
+  static async getTrailerById(id: number) {
+    const [result] = await db.select().from(animeTrailer).where(eq(animeTrailer.id, id))
+    return result ?? null
+  }
+
+  static async updateTrailerThumbnail(id: number, thumbnailUrl: string) {
+    const [updated] = await db.update(animeTrailer).set({ thumbnailUrl }).where(eq(animeTrailer.id, id)).returning()
+    return updated ?? null
   }
 
   static async deleteTrailer(id: number) {
